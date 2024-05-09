@@ -5,14 +5,7 @@
  */
 package org.jlab.groot.graphics;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.RenderingHints;
-import java.awt.Toolkit;
+import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -23,14 +16,14 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -51,18 +44,19 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import org.jfree.pdf.PDFDocument;
+import org.jfree.pdf.PDFGraphics2D;
+import org.jfree.pdf.Page;
+import org.jfree.svg.SVGGraphics2D;
+import org.jfree.svg.SVGUtils;
 import org.jlab.groot.base.GStyle;
 import org.jlab.groot.base.PadMargins;
 import org.jlab.groot.base.TColorPalette;
-import org.jlab.groot.data.DataLine;
-import org.jlab.groot.data.DataParser;
-import org.jlab.groot.data.GraphErrors;
-import org.jlab.groot.data.H1F;
-import org.jlab.groot.data.H2F;
-import org.jlab.groot.data.IDataSet;
+import org.jlab.groot.data.*;
 import org.jlab.groot.fitter.ParallelSliceFitter;
 import org.jlab.groot.group.DataGroup;
 import org.jlab.groot.math.Dimension1D;
+import org.jlab.groot.math.F1D;
 import org.jlab.groot.math.FunctionFactory;
 import org.jlab.groot.ui.FitPanel;
 import org.jlab.groot.ui.LatexText;
@@ -104,6 +98,7 @@ public class EmbeddedCanvas extends JPanel implements MouseMotionListener, Mouse
 
     public EmbeddedCanvas() {
         super();
+        Locale.setDefault(Locale.US);
         //this.setSize(500, 400);
         this.setPreferredSize(new Dimension(500, 400));
 
@@ -115,6 +110,7 @@ public class EmbeddedCanvas extends JPanel implements MouseMotionListener, Mouse
 
     public EmbeddedCanvas(int xsize, int ysize) {
         super();
+        Locale.setDefault(Locale.US);
         //this.setSize(500, 400);
         this.setPreferredSize(new Dimension(xsize, ysize));
         this.setSize(xsize, ysize);
@@ -125,6 +121,8 @@ public class EmbeddedCanvas extends JPanel implements MouseMotionListener, Mouse
     }
        
     public EmbeddedCanvas(EmbeddedPad pad) {
+        super();
+        Locale.setDefault(Locale.US);
         this.setPreferredSize(new Dimension(500, 400));
         this.createPopupMenu();
     }
@@ -777,10 +775,38 @@ public class EmbeddedCanvas extends JPanel implements MouseMotionListener, Mouse
             DateFormat df = new SimpleDateFormat("MM-dd-yyyy_hh.mm.ss_aa");
             String data = df.format(new Date());
             //this.save(desktop.getAbsolutePath() +File.separator+"Plot_"+data+".png");
-            fc.setSelectedFile(new File(GStyle.getWorkingDirectory() + File.separator + "Plot_" + data + ".png"));
-            FileFilter filter = new FileNameExtensionFilter("PNG File", "png");
-            fc.addChoosableFileFilter(filter);
-            fc.setFileFilter(filter);
+
+            String path = GStyle.getWorkingDirectory() + File.separator + "Plot_" + data;
+
+            FileFilter filterPNG = new FileNameExtensionFilter("PNG File", "png");
+            fc.addChoosableFileFilter(filterPNG);
+
+            FileFilter filterPDF = new FileNameExtensionFilter("PDF File", "pdf");
+            fc.addChoosableFileFilter(filterPDF);
+
+            FileFilter filterSVG = new FileNameExtensionFilter("SVG File", "svg");
+            fc.addChoosableFileFilter(filterSVG);
+
+            FileFilter filterTXT = new FileNameExtensionFilter("TXT File", "txt");
+            fc.addChoosableFileFilter(filterTXT);
+
+            FileFilter filterHIPO = new FileNameExtensionFilter("HIPO File", "hipo");
+            fc.addChoosableFileFilter(filterHIPO);
+
+            fc.setSelectedFile(new File(path + ".png"));
+            fc.setFileFilter(filterPNG);
+
+            fc.addPropertyChangeListener(JFileChooser.FILE_FILTER_CHANGED_PROPERTY, evt -> {
+//                String currentPath = fc.getSelectedFile().getName();
+//                System.out.println(currentPath);
+//                File selectedFile = fc.getSelectedFile();
+//                String currentPath = selectedFile.getPath();
+//                currentPath = currentPath.substring(0, currentPath.lastIndexOf("."));
+
+                FileNameExtensionFilter currentFilter = (FileNameExtensionFilter)evt.getNewValue();
+                fc.setSelectedFile(new File(path + "." + currentFilter.getExtensions()[0]));
+            });
+
             //In response to a button click:
             int returnVal = fc.showSaveDialog(this);
 
@@ -791,12 +817,30 @@ public class EmbeddedCanvas extends JPanel implements MouseMotionListener, Mouse
                     int result = JOptionPane.showConfirmDialog(this, "File already exists, would you like to overwrite it?",
                             "alert", JOptionPane.OK_CANCEL_OPTION);
                     if (result == JOptionPane.OK_OPTION) {
-                        this.save(file.getAbsolutePath());
+                        if (fc.getFileFilter() == filterPNG)
+                            this.save(file.getAbsolutePath(), SaveType.PNG);
+                        if (fc.getFileFilter() == filterTXT)
+                            this.save(file.getAbsolutePath(), SaveType.TXT);
+                        if (fc.getFileFilter() == filterHIPO)
+                            this.save(file.getAbsolutePath(), SaveType.HIPO);
+                        if (fc.getFileFilter() == filterPDF)
+                            this.save(file.getAbsolutePath(), SaveType.PDF);
+                        if (fc.getFileFilter() == filterSVG)
+                            this.save(file.getAbsolutePath(), SaveType.SVG);
                         GStyle.setWorkingDirectory(file.getParent());
                     }
                 } else {
                     //System.out.println("saving file : " + file.getAbsolutePath());
-                    this.save(file.getAbsolutePath());
+                    if (fc.getFileFilter() == filterPNG)
+                        this.save(file.getAbsolutePath(), SaveType.PNG);
+                    if (fc.getFileFilter() == filterTXT)
+                        this.save(file.getAbsolutePath(), SaveType.TXT);
+                    if (fc.getFileFilter() == filterHIPO)
+                        this.save(file.getAbsolutePath(), SaveType.HIPO);
+                    if (fc.getFileFilter() == filterPDF)
+                        this.save(file.getAbsolutePath(), SaveType.PDF);
+                    if (fc.getFileFilter() == filterSVG)
+                        this.save(file.getAbsolutePath(), SaveType.SVG);
                     GStyle.setWorkingDirectory(file.getParent());
                 }
             }
@@ -943,11 +987,78 @@ public class EmbeddedCanvas extends JPanel implements MouseMotionListener, Mouse
     }
 
     public void save(String filename) {
-        File imageFile = new File(filename);
-        try {
-            imageFile.createNewFile();
-            ImageIO.write(getScreenShot(), "png", imageFile);
-        } catch (Exception ex) {
+        String extension = filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+
+        switch(extension) {
+            case "pdf":
+                save(filename, SaveType.PDF);
+                break;
+            case "svg":
+                save(filename, SaveType.SVG);
+                break;
+            case "txt":
+                save(filename, SaveType.TXT);
+                break;
+            case "hipo":
+                save(filename, SaveType.HIPO);
+                break;
+            default:
+                save(filename, SaveType.PNG);
+                break;
+        }
+    }
+
+    public void save(String filename, SaveType saveType) {
+
+        if (saveType == SaveType.PNG) {
+            File imageFile = new File(filename);
+            try {
+                imageFile.createNewFile();
+                ImageIO.write(getScreenShot(), "png", imageFile);
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (saveType == SaveType.TXT) {
+            String extension = filename.substring(filename.lastIndexOf("."));
+            filename = filename.substring(0, filename.lastIndexOf("."));
+
+            List<IDataSetPlotter> plotters = this.getPad(popupPad).datasetPlotters;
+            for (int k = 0; k < plotters.size(); k++) {
+                IDataSet data = plotters.get(k).getDataSet();
+//            System.out.println(data);
+                data.save(filename + "_" + k + "_" + data.getName() + extension);
+            }
+        }
+
+        if (saveType == SaveType.HIPO) {
+            TDirectory tdir = new TDirectory();
+            tdir.mkdir("data");
+            tdir.cd("data");
+
+            List<IDataSetPlotter> plotters = this.getPad(popupPad).datasetPlotters;
+            for (IDataSetPlotter plotter : plotters)
+                tdir.addDataSet(plotter.getDataSet());
+
+            tdir.writeFile(filename);
+        }
+
+        if (saveType == SaveType.PDF) {
+            PDFDocument pdfDoc = new PDFDocument();
+            Page page = pdfDoc.createPage(new Rectangle(this.getSize().width, this.getSize().height));
+            PDFGraphics2D g2 = page.getGraphics2D();
+            this.paint(g2);
+            pdfDoc.writeToFile(new File(filename));
+        }
+
+        if (saveType == SaveType.SVG) {
+            SVGGraphics2D g2 = new SVGGraphics2D(this.getSize().width, this.getSize().height);
+            this.paint(g2);
+            try {
+                SVGUtils.writeToSVG(new File(filename), g2.getSVGElement());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

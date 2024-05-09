@@ -13,6 +13,7 @@ import java.awt.font.TextAttribute;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.text.AttributedString;
+import javax.swing.JFrame;
 import org.jlab.jnp.graphics.attr.ColorPalette;
 
 
@@ -32,68 +33,72 @@ public class LatexText {
     public  static int  ROTATE_LEFT   = 12;
     public  static int  ROTATE_RIGHT  = 13;
     
-    private String  textFamily   = "Avenir";//"Avenir";//"SansSerif";
-    private int     textFontSize = 14;
-    private Double  relativeX  = 0.0;
-    private Double  relativeY  = 0.0;
-    private AttributedString  latexString = null;
-    private String            asciiString = "";
-    private Integer           textColor   = 1;
-    private Color             latexTextColor = Color.BLACK;
+    //private String  textFamily    = "Avenir";//"Avenir";//"SansSerif";
+    //private int     textFontSize  = 14;
+    private Double  positionX     = 0.0;
+    private Double  positionY     = 0.0;
     
-    private Font              textFont = new Font("Helvetica",Font.PLAIN,14);
+    private AttributedString   latexString = null;
+    private String             asciiString = "";
+    private Color              latexTextColor = Color.BLACK;    
+    private Font               textFont = new Font("Avenir",Font.PLAIN,14);
     
     
     public LatexText(String text, double xc, double yc){
         this.setText(text);
-        this.setLocation(xc, yc);
-        this.setFont(textFamily);
-        this.setFontSize(textFontSize);
+        this.setPosition(xc, yc);
+        //this.setFont(textFamily);
+        //this.setFontSize(textFontSize);
     }
     
      public LatexText(String text){
         this.setText(text);
-        this.setLocation(0.0,0.0);
-        this.setFont(textFamily);
-        this.setFontSize(textFontSize);
+        this.setPosition(0.0,0.0);
+        //this.setFont(textFamily);
+        //this.setFontSize(textFontSize);
     }
      
     public final void setText(String text){
     	asciiString = text;
         String ltx  = LatexTextTools.convertUnicode(text);
-        latexString = LatexTextTools.converSuperScript(ltx);
-        this.setFont(this.textFamily);
-        this.setFontSize(this.textFontSize);
+        latexString = LatexTextTools.convertSubAndSuperscript(ltx);
+        //latexString.addAttribute(TextAttribute.FONT,textFont);
+        setAttributedStringFont(textFont);
     }
     
     public final String getTextString(){
         return asciiString;
     }
     
-    public final void setLocation(double xr, double yr){
-        this.relativeX = xr;
-        this.relativeY = yr;
+   public final void setPosition(double xr, double yr){
+        this.positionX = xr;
+        this.positionY = yr;
     }
-    
+   
     public final void setColor(Color color){
         this.latexTextColor = color;
     }
+    
     public final void setFont(Font font){
-        this.textFont = font;
+        textFont = font;
+        setAttributedStringFont(font);
+        //latexString.addAttribute(TextAttribute.FONT, font);
     }
     
-    public int    getColor(){return this.textColor;}
+    public final  Font getFont(){ return textFont;}
     
-    public void   setColor(int color){ 
-        this.textColor = color;
-        this.latexTextColor = Color.BLACK;//ColorPalette.getColor(textColor);
+    public Color    getColor(){return latexTextColor;}
+            
+    public double getX(){ return this.positionX;}
+    public double getY(){ return this.positionY;}
+    
+    public AttributedString getText(){ return latexString;}
+    
+    protected void setAttributedStringFont(Font font){
+        latexString.addAttribute(TextAttribute.FAMILY, font.getFontName());
+        latexString.addAttribute(TextAttribute.SIZE, font.getSize());
     }
-    
-    public double getX(){ return this.relativeX;}
-    public double getY(){ return this.relativeY;}
-    
-    public AttributedString getText(){ return this.latexString;}
-    
+    /*
     public final void setFont(String fontname){
         this.textFamily = fontname;
         if(this.latexString.getIterator().getEndIndex()>0){
@@ -103,11 +108,13 @@ public class LatexText {
         }
     }
     
-    public final void setFont(String fontname, int weight){
+    public final void setFont(String fontname, int size, int weight){
         this.textFamily = fontname;
         if(this.latexString.getIterator().getEndIndex()>0){
         //System.out.println("INDEX = " + this.latexString.getIterator().getEndIndex());
             latexString.addAttribute(TextAttribute.FAMILY, fontname);
+            latexString.addAttribute(TextAttribute.SIZE, size);
+            
             switch(weight){
                 case 0: latexString.addAttribute(TextAttribute.WEIGHT,TextAttribute.WEIGHT_LIGHT); break;
                 case 1: latexString.addAttribute(TextAttribute.WEIGHT,TextAttribute.WEIGHT_MEDIUM); break;
@@ -117,44 +124,62 @@ public class LatexText {
             }
         }
     }
+    */
     
     public final void setFontSize(int size){
-        this.textFontSize = size;
+        /*this.textFontSize = size;
         if(this.latexString.getIterator().getEndIndex()>0){
             latexString.addAttribute(TextAttribute.SIZE, (float) size);
-        }
+        }*/
     }
     
     
     public int drawString(String text, Graphics2D  g2d, int x, int y, int alignX, int alignY, int type){
+        
+        g2d.setFont(textFont);
+        
         FontMetrics fm = g2d.getFontMetrics(textFont);
         Rectangle2D rect = fm.getStringBounds(text,g2d);
-        int  ascend   = fm.getAscent();
-        int leading   = fm.getLeading();
+        
+        int   ascend  = fm.getAscent();
+        int  leading  = fm.getLeading();
+        int  descent = fm.getDescent();
+        int   height  = fm.getHeight();
+        
+        //System.out.printf(" ascent = %3d, leading = %3d, descent = %3d, height = %3d (%3d) \n",
+        //        ascend,leading,descent,height,(int) rect.getHeight());
         int posX = x;
-        int posY = y + ascend;
+        int posY = y - descent;
        
         if(alignX==1) posX = (int) (posX-0.5*rect.getWidth());
         if(alignX==2) posX = (int) (posX-rect.getWidth());
-        if(alignY==1) posY = (int) (y + 0.5*(ascend));
-        if(alignY==2) posY = (int)  y;        
+        if(alignY==LatexText.ALIGN_TOP) posY = (int) (y + ascend);
+        if(alignY==LatexText.ALIGN_CENTER) posY = (int)  (y + ascend - height/2);
+        
         g2d.setColor(latexTextColor);
         g2d.setFont(textFont);
         g2d.drawString(text, posX, posY);                
         if(type==0) return (int) rect.getHeight();
         return (int) rect.getWidth();
     }
-    
+        
     public void drawString(Graphics2D  g2d, int x, int y, int alignX, int alignY, int rotate){
-    
+        
+        g2d.setFont(textFont);
+        
         if(rotate==LatexText.ROTATE_NONE){
-            this.drawString(g2d, x, y, alignX, alignY);
+            drawString(g2d, x, y, alignX, alignY);
             return;
         }
         
-        FontMetrics fmg = g2d.getFontMetrics(new Font(this.textFamily,Font.PLAIN,this.textFontSize));
-        Rectangle2D rect = fmg.getStringBounds(this.latexString.getIterator(), 0,
-                this.latexString.getIterator().getEndIndex(),g2d);
+        FontMetrics fmg = g2d.getFontMetrics(textFont);
+        Rectangle2D rect = fmg.getStringBounds(asciiString,g2d);
+        //fmg.getStringBounds(this.latexString.getIterator(), 0,
+        //this.latexString.getIterator().getEndIndex(),g2d);
+        int  ascend   = fmg.getAscent();
+        int leading   = fmg.getLeading();
+        int  descent  = fmg.getDescent();
+        int  height   = fmg.getHeight();
         
         int posX = y;
         int posY = x;
@@ -162,56 +187,64 @@ public class LatexText {
         if(alignX==LatexText.ALIGN_CENTER) posX = posX + (int) (0.5*rect.getWidth());
         //if(alignX==LatexText.ALIGN_LEFT)   posX = posX + (int) rect.getWidth();
         if(alignY==LatexText.ALIGN_TOP)    posY = posY + (int) (rect.getHeight());
+        //if(alignY==LatexText.ALIGN_TOP)    posY = posY + (int) (rect.getHeight());
         //if(alignY==LatexText.ALIGN_CENTER)    posY = posY + (int) (0.5*rect.getHeight());
         AffineTransform orig = g2d.getTransform();
         g2d.rotate(-Math.PI/2);
         g2d.setColor(this.latexTextColor);
-        g2d.drawString(latexString.getIterator(),-posX,posY);
+        g2d.drawString(latexString.getIterator(),-posX ,posY - descent);
         g2d.setTransform(orig);
     }
     
-    public void drawString(Graphics2D  g2d, int x, int y, int alignX, int alignY){
-        FontMetrics fmg = g2d.getFontMetrics(new Font(this.textFamily,Font.BOLD,this.textFontSize));
+    public void drawString(Graphics2D  g2d, int x, int y, int alignX, int alignY){       
+        FontMetrics fmg = g2d.getFontMetrics(textFont);
         Rectangle2D rect = fmg.getStringBounds(this.latexString.getIterator(), 0,
                 this.latexString.getIterator().getEndIndex(),g2d);
         
-        //g2d.setFont(new Font(this.textFamily,Font.PLAIN,this.textFontSize));
+        //Rectangle2D rect = fmg.getStringBounds(asciiString,g2d);
+        //Rectangle2D asciiRect = fmg.getStringBounds(asciiString,g2d);
+        
         int  ascend   = fmg.getAscent();
         int leading   = fmg.getLeading();
+        int  descent  = fmg.getDescent();
+        int  height   = fmg.getHeight();
+        //int leading   = fmg.getLeading();
+        
         //System.out.println("ascend = " + ascend + " leading = " + leading);
         int  xp     = x;
-        int  yp     = y + ascend;
+        int  yp     = y - descent;
         if(alignX==1) xp = (int) (xp-0.5*rect.getWidth());
         if(alignX==2) xp = (int) (xp-rect.getWidth());
-        if(alignY==1) yp = (int) (y + 0.5*(ascend));
-        if(alignY==2) yp = (int)  y;
+        if(alignY==LatexText.ALIGN_TOP) yp = (int) (y + ascend);
+        if(alignY==LatexText.ALIGN_CENTER) yp = (int)  (y + ascend - height/2);
+        //if(alignY==1) yp = (int) (y + 0.5*(height));
+        //if(alignY==2) yp = (int)  y;
+        g2d.setFont(textFont);
         g2d.setColor(latexTextColor);
         g2d.drawString(latexString.getIterator(), xp, yp);        
     }
     
     public  Rectangle2D  getBoundsNumber(Graphics2D g2d){
-        FontMetrics fmg = g2d.getFontMetrics(new Font(this.textFamily,Font.BOLD,this.textFontSize));
+        /*FontMetrics fmg = g2d.getFontMetrics(new Font(this.textFamily,Font.BOLD,this.textFontSize));
         //System.out.println(" ACCEND = " + fmg.getAscent() + " LEAD " + fmg.getLeading()
         //+ "  DESCENT " + fmg.getDescent() + "  HEIGHT = " + fmg.getHeight());
         Rectangle2D rect = fmg.getStringBounds(this.latexString.getIterator(), 0,
                 this.latexString.getIterator().getEndIndex(),g2d);
         //fmg.getHeight();
-        return new Rectangle2D.Double(0,0,rect.getWidth(),fmg.getAscent());
+        return new Rectangle2D.Double(0,0,rect.getWidth(),fmg.getAscent());*/
+        System.out.println("------------ WARNING ---- DELETED METHOD CALL -----");
+        return new Rectangle2D.Double(0,0,0,0);
     }
     
     public  Rectangle2D getBounds( Graphics2D g2d){
-        FontMetrics fmg = g2d.getFontMetrics(new Font(this.textFamily,Font.BOLD,this.textFontSize));
-        //System.out.println(" ACCEND = " + fmg.getAscent() + " LEAD " + fmg.getLeading()
-        //+ "  DESCENT " + fmg.getDescent() + "  HEIGHT = " + fmg.getHeight());
+        FontMetrics fmg = g2d.getFontMetrics(this.textFont);
         Rectangle2D rect = fmg.getStringBounds(this.latexString.getIterator(), 0,
                 this.latexString.getIterator().getEndIndex(),g2d);
-        //fmg.getHeight();
-        //return new Rectangle2D.Double(0,0,rect.getWidth(),fmg.getAscent());
         return rect;
     }
     
     public  Rectangle2D getBounds(FontMetrics  fm, Graphics2D g2d){
-        FontMetrics fmg = g2d.getFontMetrics(new Font(this.textFamily,Font.PLAIN,this.textFontSize));
+        FontMetrics fmg = g2d.getFontMetrics(textFont);
         Rectangle2D rect = fmg.getStringBounds(this.latexString.getIterator(), 0,
                 this.latexString.getIterator().getEndIndex(),g2d);
         return rect;
@@ -226,6 +259,6 @@ public class LatexText {
     }
     
     public static void main(String[] args){
-        LatexText lt = LatexText.createFromDouble(0.56789, 2);
+        LatexText lt = LatexText.createFromDouble(0.56789, 2);        
     }
 }

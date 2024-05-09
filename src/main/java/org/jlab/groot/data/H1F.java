@@ -7,6 +7,9 @@ import org.jlab.groot.math.Func1D;
 import org.jlab.groot.math.StatNumber;
 import org.jlab.groot.ui.PaveText;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import org.jlab.groot.fitter.DataFitter;
 
 
 /**
@@ -153,6 +156,8 @@ public class H1F  implements IDataSet {
 
     public long getUnderflow(){ return this.histogramUnderFlow;}
     public long getOverflow() { return this.histogramOverFlow;}
+    protected void setOverflow(long over){ histogramOverFlow = over;}
+    protected void setUnderflow(long under){ histogramUnderFlow = under;}
     
     public final void initAttributes(){
     	try {
@@ -313,11 +318,15 @@ public class H1F  implements IDataSet {
         }
     }
     
+    protected void setEntries(long entries){
+        histogramEntries = entries;
+    }
+    
     public long getEntries(){
-        int entries = 0;
+        /*int entries = 0;
         for(int loop = 0; loop < this.histogramData.length; loop++){
             entries += (int) this.histogramData[loop];
-        }
+        }*/
         return histogramEntries;
     }
     /**
@@ -439,6 +448,14 @@ public class H1F  implements IDataSet {
     	incrementBinContent(xAxis.getBin(value), weight);
     }
     
+    public void fit(Func1D func,String options){
+        DataFitter.fit(func, this, options);   
+        fittedFunction = func;
+    }
+    
+    public void fit(Func1D func){
+        this.fit(func, "");
+    }
     /**
      * Normalizes the histogram data to the specified number
      * 
@@ -577,6 +594,53 @@ public class H1F  implements IDataSet {
             result.set(h1.getBinContent(bin), h1.getBinError(bin));
             denom.set(h2.getBinContent(bin), h2.getBinError(bin));
             result.add(denom);
+            h1div.setBinContent(bin, result.number());
+            h1div.setBinError(bin, result.error());
+        }
+        return h1div;
+    }
+    
+    public static H1F add(H1F h1, H1F h2, double c1, double c2){
+        
+        if(h1.getXaxis().getNBins()!=h2.getXaxis().getNBins()){
+            System.out.println("[H1D::divide] error : histograms have inconsistent bins");
+            return null;
+        }
+        H1F h1div = new H1F(h1.getName()+"_ADD_"+h2.getName(),
+                h1.getXaxis().getNBins(),
+                h1.getXaxis().min(),h1.getXaxis().max());
+        StatNumber   result = new StatNumber();
+        StatNumber   denom  = new StatNumber();
+        
+        StatNumber   c1stat = new StatNumber(c1,0.0);
+        StatNumber   c2stat = new StatNumber(c2,0.0);
+        
+        for(int bin = 0; bin < h1.getXaxis().getNBins(); bin++){
+            result.set(h1.getBinContent(bin), h1.getBinError(bin));
+            denom.set(h2.getBinContent(bin), h2.getBinError(bin));
+            result.multiply( c1stat);
+            denom.multiply(  c2stat);
+            result.add(denom);
+            h1div.setBinContent(bin, result.number());
+            h1div.setBinError(bin, result.error());
+        }
+        return h1div;
+    }
+    
+    public static H1F sub(H1F h1, H1F h2){
+        if(h1.getXaxis().getNBins()!=h2.getXaxis().getNBins()){
+            System.out.println("[H1D::divide] error : histograms have inconsistent bins");
+            return null;
+        }
+        H1F h1div = new H1F(h1.getName()+"_ADD_"+h2.getName(),
+                h1.getXaxis().getNBins(),
+                h1.getXaxis().min(),h1.getXaxis().max());
+        StatNumber   result = new StatNumber();
+        StatNumber   denom  = new StatNumber();
+        for(int bin = 0; bin < h1.getXaxis().getNBins(); bin++){
+            result.set(h1.getBinContent(bin), h1.getBinError(bin));
+            denom.set(h2.getBinContent(bin), h2.getBinError(bin));
+            result.subtract(denom);
             h1div.setBinContent(bin, result.number());
             h1div.setBinError(bin, result.error());
         }
@@ -1035,4 +1099,50 @@ public class H1F  implements IDataSet {
         }
         return max;
     }
+
+    @Override
+    public void save(String filename) {
+        try {
+            FileWriter file = new FileWriter(filename);
+            file.write("#H1F: " + this.histName + ", nbins: " + xAxis.getNBins() +"\n");
+            file.write("#Bin Center X,Bin Value,Bin Error\n");
+            for(int i = 0; i < xAxis.getNBins(); i++) {
+                file.write(String.format("%f,%f,%f",
+                        xAxis.getBinCenter(i), getBinContent(i), getBinError(i)));
+                file.write('\n');
+            }
+            file.close();
+        } catch (IOException e) {
+        }
+    }
+    
+    
+    
+    public static H1F getAsym(H1F hpos, H1F hneg, double c2, double dc2){
+        
+        H1F hnom = H1F.add(hpos,hneg,1,-c2);
+        H1F hden = H1F.add(hpos,hneg,1, c2);
+        
+        H1F asym = H1F.divide(hnom, hden);
+        
+        //double  c2 = 1.0;
+        //double dc2 = 0.0;
+        
+        int xbins = asym.getxAxis().getNBins();
+        for(int i = 0; i < xbins; i++){
+            double a = hpos.getBinContent(i);
+            double b = hneg.getBinContent(i);
+            double bot = hden.getBinContent(i);
+            if(bot < 1e-6){} else {
+              double dasq  = hpos.getBinError(i);//->GetBinErrorSqUnchecked(bin);
+              double dbsq  = hneg.getBinError(i);
+              double error = 2*Math.sqrt(a*a*c2*c2*dbsq + c2*c2*b*b*dasq+a*a*b*b*dc2*dc2)/(bot*bot);  
+              asym.setBinError(i, error);
+            }
+        }
+        return asym;
+    }
+    
+    public static H1F getAsym(H1F hpos, H1F hneg) {return H1F.getAsym(hpos, hneg, 1, 0);}
+    
 }

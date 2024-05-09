@@ -11,6 +11,8 @@ import org.jlab.groot.base.DatasetAttributes;
 import org.jlab.groot.base.GStyle;
 import org.jlab.groot.data.IDataSet;
 import org.jlab.groot.ui.PaveText;
+import java.io.FileWriter;
+import java.io.IOException;
 
 /**
  *
@@ -25,6 +27,9 @@ public class Func1D implements IDataSet {
     private DatasetAttributes   funcAttr      = new DatasetAttributes();
     private double      funcChi2       = 0.0;
     private int         funcNDF        = 0;
+    private boolean     isFitValid  = false;
+    private String      statBoxFormatString = "%.4f";
+    private String      statBoxFormatError = "%.5f";
     
     public Func1D(String name){
         this.funcName = name;
@@ -48,8 +53,22 @@ public class Func1D implements IDataSet {
 		}	
     }
     
+    public final void setFitValid(boolean flag){
+        this.isFitValid = flag;
+    }
+    
+    public final boolean isFitValid(){ return this.isFitValid;}
+    
     public final void setRange(double min, double max){
         this.functionRange.setMinMax(min, max);
+    }
+    
+    public void setStatBoxFormat(String format){
+        this.statBoxFormatString = format;
+    }
+    
+    public void setStatBoxErrorFormat(String format){
+        this.statBoxFormatError = format;
     }
     
     public void addParameter(String name){
@@ -219,11 +238,12 @@ public class Func1D implements IDataSet {
         PaveText  stat = new PaveText(2);
         stat.addText("Name:",this.getName());
         for(UserParameter par : userPars.getParameters()){
-            stat.addText(par.name(),String.format("%.3f", par.value()));
+            stat.addText(par.name(),String.format(this.statBoxFormatString+"#pm"+this.statBoxFormatError, 
+                    par.value(),par.error()));
         }
-        stat.addText("#chi^2/ndf",String.format("%.3f", this.getChiSquare()/(double)this.getNDF()));
-        stat.addText("#chi^2",String.format("%.3f", this.getChiSquare()));
-        stat.addText("ndf",String.format("%.3f", (double)this.getNDF()));
+        stat.addText("#chi^2/ndf",String.format(this.statBoxFormatString, this.getChiSquare()/(double)this.getNDF()));
+        stat.addText("#chi^2",String.format(this.statBoxFormatString, this.getChiSquare()));
+        stat.addText("ndf",String.format(this.statBoxFormatString, (double)this.getNDF()));
         return stat;
     }
     
@@ -244,6 +264,30 @@ public class Func1D implements IDataSet {
     @Override
     public void reset() {
         //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    public void save(String filename) {
+        String extension = filename.substring(filename.lastIndexOf("."));
+        filename = filename.substring(0, filename.lastIndexOf("."));
+
+        try {
+            FileWriter parsfile = new FileWriter(filename + "_pars" + extension);
+            parsfile.write("#F1D: " + this.funcName + ", nsamples: " + getDataSize(0) +"\n");
+            parsfile.write(this.toString());
+            parsfile.close();
+
+            FileWriter file = new FileWriter(filename + extension);
+            file.write("#F1D: " + this.funcName + " nsamples: " + getDataSize(0) +"\n");
+            file.write("#x,y\n");
+            for(int i = 0; i < getDataSize(0); i++) {
+                file.write(String.format("%f,%f",
+                        getDataX(i), getDataY(i)));
+                file.write('\n');
+            }
+            file.close();
+
+        } catch (IOException e) {
+        }
     }
 
 }

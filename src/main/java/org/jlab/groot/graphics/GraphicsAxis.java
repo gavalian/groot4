@@ -395,16 +395,18 @@ public class GraphicsAxis {
             }
             
             int axisBounds = (int) texts.get(0).getBoundsNumber(g2d).getHeight();
-            attr.getTitle().drawString(g2d,
-                    (int) midpoint,
-                    y + axisBounds + labelOffset + titleOffset, 1, 0);
+            if (!attr.getTitle().getTextString().equals(""))
+                attr.getTitle().drawString(g2d,
+                        (int) midpoint,
+                        y + axisBounds + labelOffset + titleOffset, 1, 0);
         } else {
             g2d.drawLine(x, (int) this.attr.getAxisDimension().getMin(), x, 
                     (int) this.attr.getAxisDimension().getMax());
             //g2d.drawString(this.axisTicks.getAxisExponent(), x, (int) this.attr.getAxisDimension().getMax());
 
-            axisTicks.getAxisExponent().drawString(g2d, x+5, 
-                    (int) this.attr.getAxisDimension().getMax() - 5, 0, 2);
+            if (!axisTicks.getAxisExponent().getTextString().equals(""))
+                axisTicks.getAxisExponent().drawString(g2d, x+5,
+                        (int) this.attr.getAxisDimension().getMax() - 5, 0, 2);
             
             
             for (int i = 0; i < ticks.size(); i++) {
@@ -425,9 +427,10 @@ public class GraphicsAxis {
                 }
             }
 
-            attr.getTitle().drawString(g2d, x - axisBounds - labelOffset - titleOffset - 8 - attr.getTitleFontSize(),
-                    (int) midpoint,
-                    LatexText.ALIGN_CENTER, LatexText.ALIGN_TOP, LatexText.ROTATE_LEFT);
+            if (!attr.getTitle().getTextString().equals(""))
+                attr.getTitle().drawString(g2d, x - axisBounds - labelOffset - titleOffset - 8 - attr.getTitleFontSize(),
+                        (int) midpoint,
+                        LatexText.ALIGN_CENTER, LatexText.ALIGN_TOP, LatexText.ROTATE_LEFT);
 
         }
 
@@ -464,8 +467,9 @@ public class GraphicsAxis {
         g2d.setColor(Color.BLACK);
         g2d.drawRect(x + 4, (int) this.attr.getAxisDimension().getMax(),
                 8, (int) Math.abs(this.attr.getAxisDimension().getLength()));
-        axisTicks.getAxisExponent().drawString(g2d, x+5, 
-                    (int) this.attr.getAxisDimension().getMax() - 5, 0, 2);
+        if (!axisTicks.getAxisExponent().getTextString().equals(""))
+            axisTicks.getAxisExponent().drawString(g2d, x+5,
+                        (int) this.attr.getAxisDimension().getMax() - 5, 0, 2);
         for (int i = 0; i < ticks.size(); i++) {
             double tick = this.getAxisPosition(ticks.get(i));
             g2d.drawLine(xstart, (int) tick, xstart + tickSize, (int) tick);

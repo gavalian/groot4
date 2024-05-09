@@ -6,7 +6,11 @@
 
 package org.jlab.groot.base;
 
-import java.awt.GraphicsEnvironment;
+import java.awt.*;
+import java.io.File;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -18,7 +22,7 @@ import java.util.Set;
  */
 public class FontProperties {
     
-    private static final List<String>   systemAvailableFonts = FontProperties.initSystemFonts();
+    private static List<String>   systemAvailableFonts = null;//FontProperties.initSystemFonts();
     
     private String fontName = "Avenir";
     private int    fontSize = 12;
@@ -38,10 +42,16 @@ public class FontProperties {
     }
     
     public static List<String>  getSystemFonts(){
+        if(systemAvailableFonts==null){
+            systemAvailableFonts = FontProperties.initSystemFonts();
+        }
         return systemAvailableFonts;
     }
     
     public static String[]  getSystemFontsArray(){
+        if(systemAvailableFonts==null){
+            systemAvailableFonts = FontProperties.initSystemFonts();
+        }
         String[] fonts = new String[systemAvailableFonts.size()];
         int icounter = 0;
         for(String fn : systemAvailableFonts){
@@ -91,6 +101,24 @@ public class FontProperties {
                 }
             }
         }
+
+        try {
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            File directory = new File(FontProperties.class.getClassLoader().getResource("fonts").getFile());
+
+            try(DirectoryStream<Path> dirStream = Files.newDirectoryStream(directory.toPath(), "*.{ttf,otf}")) {
+                for (Path entry: dirStream) {
+                    Font tmp = Font.createFont(Font.TRUETYPE_FONT, entry.toFile());
+                    fontList.add(tmp.getFamily());
+                    ge.registerFont(tmp);
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("Whoops!");
+            System.err.println(e);
+        }
+
         System.out.println("[SystemFonts] ---> set size = " + fontSet.size()
         + ", available " + fontList.size());
         return fontList;

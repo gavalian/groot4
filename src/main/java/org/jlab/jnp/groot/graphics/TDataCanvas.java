@@ -6,6 +6,7 @@
 package org.jlab.jnp.groot.graphics;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -17,14 +18,18 @@ import javax.swing.JPanel;
 import org.jlab.groot.data.GraphErrors;
 import org.jlab.groot.data.H1F;
 import org.jlab.groot.data.H2F;
+import org.jlab.groot.data.IDataSet;
 import org.jlab.groot.math.F1D;
 import org.jlab.groot.math.FunctionFactory;
+import org.jlab.jnp.graphics.attr.AttributeType;
+import org.jlab.jnp.groot.settings.GRootColorPalette;
 
 /**
  *
  * @author gavalian
  */
 public class TDataCanvas extends JFrame implements ActionListener {
+    
     private int CANVAS_DEFAULT_WIDTH  = 600;
     private int CANVAS_DEFAULT_HEIGHT = 400;
     
@@ -34,21 +39,55 @@ public class TDataCanvas extends JFrame implements ActionListener {
     private String     dataCanvasTitle = "c1";
     
     public TDataCanvas(){
-        initUI();
+        initUI(true);
+    }
+    
+    public TDataCanvas(int xsize, int ysize){
+        this.CANVAS_DEFAULT_WIDTH = xsize;
+        this.CANVAS_DEFAULT_HEIGHT = ysize;
+        initUI(true);
+    }
+    
+    public TDataCanvas(int xsize, int ysize, boolean closeOnExit){
+        this.CANVAS_DEFAULT_WIDTH = xsize;
+        this.CANVAS_DEFAULT_HEIGHT = ysize;
+        initUI(closeOnExit);
     }
     
     public TDataCanvas(String title){
         this.dataCanvasTitle = title;
-        initUI();        
+        initUI(true);        
     }
     
     public TDataCanvas(String title, int width, int height){
         this.CANVAS_DEFAULT_WIDTH  = width; this.CANVAS_DEFAULT_HEIGHT = height;
-        initUI();
+        initUI(true);
     }
     
-    private void initUI(){
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    public TDataCanvas setMargins(int left, int top, int right, int bottom){
+        getDataCanvas().left(left).top(top).right(right).bottom(bottom);
+        return this;
+    }
+    
+    public TDataCanvas setAxisFontSize(int labelSize, int titleSize){
+        getDataCanvas().setAxisFontSize(labelSize).setAxisTitleFontSize(titleSize);
+        return this;
+    }
+    
+    
+    public void setAxisLimits(double xmin, double xmax, double ymin, double ymax){
+        this.dataCanvas.setAxisLimits(xmin, xmax, ymin, ymax);
+    }
+    
+    public void setAxisLimits(boolean automatic){
+        if(automatic==true){
+            this.getDataCanvas().setAxisLimits(automatic);
+        }
+    }
+    
+    private void initUI(boolean closeOnExit){
+        
+        if(closeOnExit==true) setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
         JMenuBar menuBar = this.createMenuBar();
         setJMenuBar(menuBar);
@@ -71,23 +110,57 @@ public class TDataCanvas extends JFrame implements ActionListener {
         this.setVisible(true);
     }
     
+    public TDataCanvas cd(int pad){
+        getDataCanvas().cd(pad); return this;
+    }
+    
+    public TDataCanvas draw(IDataSet ds){
+        getDataCanvas().draw(ds); return this;
+    }
+    
+    public TDataCanvas draw(IDataSet ds, String options){
+        getDataCanvas().draw(ds,options); return this;
+    }
+    
+    public TDataCanvas divide(int x, int y){
+        getDataCanvas().divide(x, y); return this;
+    }
+    
+     public TDataCanvas divide(double[][] pads){
+        getDataCanvas().divide(pads); return this;
+    }
+     
     private JMenuBar createMenuBar(){
         JMenuBar menuBar = new JMenuBar();
         JMenu fileMenu = new JMenu("File");
+        JMenu fileHelp = new JMenu("Help");
         
         JMenu saveMenu = new JMenu("Save...");
         
         JMenuItem savePDF = new JMenuItem("Export PDF");
         JMenuItem saveEPS = new JMenuItem("Export EPS");
         JMenuItem saveSVG = new JMenuItem("Export SVG");
+        JMenuItem savePDFFree = new JMenuItem("Export PDF free Hep");
+        
+        JMenuItem colAndLine = new JMenuItem("Colors and Lines");
+        JMenuItem colAndLineDark = new JMenuItem("Colors and Lines (dark)");
+        
+        colAndLine.addActionListener(this);
+        colAndLineDark.addActionListener(this);
+        fileHelp.add(colAndLine);
+        fileHelp.add(colAndLineDark);
+        
         saveMenu.add(savePDF);
         saveMenu.add(saveEPS);
         saveMenu.add(saveSVG);
+        saveMenu.add(savePDFFree);
         savePDF.addActionListener(this);
+        savePDFFree.addActionListener(this);
         saveEPS.addActionListener(this);
         saveSVG.addActionListener(this);
         fileMenu.add(saveMenu);
         menuBar.add(fileMenu);
+        menuBar.add(fileHelp);
         return menuBar;
     }
     
@@ -95,11 +168,19 @@ public class TDataCanvas extends JFrame implements ActionListener {
         return this.dataCanvas;
     }
     
+    public TDataCanvas addLegend(Legend leg){
+        this.dataCanvas.addLegend(leg);
+        return this;
+    }
     
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getActionCommand().compareTo("Export PDF")==0){
             this.getDataCanvas().save(this.dataCanvasTitle + ".pdf");
+        }
+        
+        if(e.getActionCommand().compareTo("Export PDF free Hep")==0){
+            this.getDataCanvas().export("test_free" + ".pdf");
         }
         
         if(e.getActionCommand().compareTo("Export EPS")==0){
@@ -108,60 +189,40 @@ public class TDataCanvas extends JFrame implements ActionListener {
         if(e.getActionCommand().compareTo("Export SVG")==0){
             this.getDataCanvas().saveSVG(this.dataCanvasTitle + ".svg");
         }
+        
+        if(e.getActionCommand().compareTo("Colors and Lines")==0){
+            TDataCanvas c = new TDataCanvas(800,600,false);
+            c.divide(2, 1);
+            Groot4Demo.demo6(c.getDataCanvas(), 0, false);
+            Groot4Demo.demo5(c.getDataCanvas(), 1, false);
+        }
+        
+        if(e.getActionCommand().compareTo("Colors and Lines (dark)")==0){
+            TDataCanvas c = new TDataCanvas(800,600,false);
+            c.divide(2, 1);
+            //c.getDataCanvas().initBackground(38, 49, 55);
+            c.getDataCanvas().initBackground(69, 90, 101);
+            c.getDataCanvas().getRegion(0).getGraphicsAxis().getAxisX().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "12");
+            c.getDataCanvas().getRegion(0).getGraphicsAxis().getAxisY().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "12");
+            c.getDataCanvas().getRegion(1).getGraphicsAxis().getAxisX().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "12");
+            c.getDataCanvas().getRegion(1).getGraphicsAxis().getAxisY().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "12");
+            Groot4Demo.demo6(c.getDataCanvas(), 0,true);
+            Groot4Demo.demo5(c.getDataCanvas(), 1,true);
+        } 
     }
     
+
     public static void main(String[] args){
+        GRootColorPalette.getInstance().setColorScheme("tab10");        
         TDataCanvas c1 = new TDataCanvas("T",900,600);
         //c1.getDataCanvas().left(120).setAxisTitleFont("Avenir", 18, 0);
         c1.getDataCanvas().divide(2,1);
-        c1.getDataCanvas().left(80).setAxisTitleFont("Avenir", 18, 0);        
-        c1.getDataCanvas().left(80).setAxisFont("Helvetica", 18, 0);
-        H1F h1 = FunctionFactory.randomGausian(100, 0.1, 2.5, 1000000, 1.25, 0.3);
-        HistogramNode1D node = new HistogramNode1D(h1);
         
-        /*H2F h2 = new H2F("h2",2,0.0,1.0,2,0.0,1.0);
-        h2.setBinContent(0, 0, 0.8);
-        h2.setBinContent(1, 1, 0.9);
-        h2.setBinContent(1, 0, 0.5);
-        h2.setBinContent(0, 1, 0.4);
-     */
-        H2F h2 = FunctionFactory.randomGausian2D(200, 0.0, 2.5, 10000000, 1.25, 0.55);
-        HistogramNode2D node2 = new HistogramNode2D(h2);
-        
-        h1.setLineColor(4);
-        //h1.setLineStyle(1);
-        h1.setLineWidth(2);
-        h1.setFillColor(53);
-        //c1.getDataCanvas().getRegion(0).getGraphicsAxis().addNode(node2);
-        PaveText text = new PaveText("trying helvetica 0.1 20.7 80",0,0);
-        PaveText textb = new PaveText("Bold Helvetica 0.1 20.7 80",0,120);
-        textb.setFont(new Font("Times",Font.PLAIN,18));
-        //for(int i = 0; i < 6; i++){
-        F1D function = new F1D("f1","x/sqrt(x*x+[m]*[m])",0.05,1.5);
-        function.setParameter(0, 0.938);
-        function.setLineColor(2);
-        c1.getDataCanvas().getRegion(0).getGraphicsAxis().addNode(new HistogramNode2D(h2));
-        c1.getDataCanvas().getRegion(0).getGraphicsAxis().addNode(new FunctionNode1D(function));
-        
-        //c1.getDataCanvas().getRegion(1).getGraphicsAxis().addNode(new HistogramNode1D(h1));
-        //c1.getDataCanvas().getRegion(1).addNode(text);
-        //c1.getDataCanvas().getRegion(1).addNode(textb);
-        //}
-        //c1.getDataCanvas().getRegion(0).getGraphicsAxis().addNode(node);
-        //c1.getDataCanvas().getRegion(1).getGraphicsAxis().addNode(node2);
-        c1.getDataCanvas().repaint();
-        GraphErrors graph = new GraphErrors();
-        
-        graph.setTitleX("P [GeV]");
-        graph.setTitleY("AI Rec Efficiency");
-        graph.readFile("demo_graph.data");
-        System.out.println("size = " + graph.getDataSize(0));
-        graph.setLineColor(1);
-        graph.setMarkerColor(4);
-        graph.setLineThickness(3);
-        graph.setMarkerSize(8);
-        c1.getDataCanvas().getRegion(1).getGraphicsAxis().setAxisLimits(0.5,9.5,0.0,1.4005);
-        c1.getDataCanvas().getRegion(1).getGraphicsAxis().addDataNode(new GraphNode2D(graph));
-        
-    }    
+        /*c1.getDataCanvas().initBackground(69, 90, 101);
+        c1.getDataCanvas().getRegion(0).getGraphicsAxis().getAxisX().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "0");
+        c1.getDataCanvas().getRegion(0).getGraphicsAxis().getAxisY().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "0");
+        c1.getDataCanvas().getRegion(1).getGraphicsAxis().getAxisX().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "0");
+        c1.getDataCanvas().getRegion(1).getGraphicsAxis().getAxisY().getAttributes().changeValue(AttributeType.AXISLINECOLOR, "0");
+        */
+    }
 }
